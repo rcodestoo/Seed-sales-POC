@@ -3,349 +3,410 @@ from datetime import datetime
 import pandas as pd
 from notification import create_notification,show_do_notifications
 
+status_mapping = {
+    'pending_marketing_approval': 'Pending Marketing Approval',
+    'pending_marketing': 'Pending Marketing Approval',
+    'marketing_approved': 'Marketing Approved',
+    'marketing_rejected': 'Marketing Rejected',
+    'pending_production_approval': 'Pending Production Approval',
+    'production_approved': 'Production Approved',
+    'production_rejected': 'Production Rejected',
+    'pending_payment_term': 'Pending Payment Term',
+    'pending_payment': 'Pending Payment',
+    'payment_verified': 'Payment Verified',
+    'in_production': 'In Production',
+    'production_completed': 'Production Completed',
+    'ready_for_pickup': 'Ready for Pickup',
+    'do_generated': 'DO Generated',
+    'completed': 'Completed'
+}
+
 def format_order_id(order_id):
     """Format the order ID to display only the first 8 characters."""
     return order_id[:8]
 
 def show_marketing_dashboard():
+    """Show marketing dashboard with improved UI."""
     st.title("📊 Marketing Dashboard")
     
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "Order Management",
-        "Payment Terms Review", 
-        "Payment Verification", 
-        "DO Notifications",
-        "Customer Support"
+    # Dashboard Overview Cards in two rows
+    st.markdown("### 📈 Overview")
+    
+    # First row of metrics
+    row1_col1, row1_col2, row1_col3 = st.columns(3)
+    
+    with row1_col1:
+        new_orders = len([o for o in st.session_state.orders 
+                         if o.get('status') == 'pending_marketing_approval'])
+        st.markdown("""
+            <div style='background-color: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #dee2e6; text-align: center;'>
+                <h3 style='color: #0d6efd; margin: 0;'>New Orders</h3>
+                <h2 style='margin: 10px 0;'>{}</h2>
+                <p style='color: #6c757d; margin: 0;'>Pending Marketing Approval</p>
+            </div>
+        """.format(new_orders), unsafe_allow_html=True)
+    
+    with row1_col2:
+        completed_orders = len([o for o in st.session_state.orders 
+                              if o.get('status') == 'completed'])
+        st.markdown("""
+            <div style='background-color: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #dee2e6; text-align: center;'>
+                <h3 style='color: #198754; margin: 0;'>Completed Orders</h3>
+                <h2 style='margin: 10px 0;'>{}</h2>
+                <p style='color: #6c757d; margin: 0;'>Successfully Processed</p>
+            </div>
+        """.format(completed_orders), unsafe_allow_html=True)
+    
+    with row1_col3:
+        total_revenue = sum([o.get('total', 0) for o in st.session_state.orders 
+                           if o.get('status') == 'completed'])
+        st.markdown("""
+            <div style='background-color: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #dee2e6; text-align: center;'>
+                <h3 style='color: #198754; margin: 0;'>Total Revenue</h3>
+                <h2 style='margin: 10px 0;'>${:,.2f}</h2>
+                <p style='color: #6c757d; margin: 0;'>From Completed Orders</p>
+            </div>
+        """.format(total_revenue), unsafe_allow_html=True)
+
+    # Second row of metrics
+    st.markdown("<br>", unsafe_allow_html=True)  # Add spacing
+    row2_col1, row2_col2, row2_col3 = st.columns(3)
+    
+    with row2_col1:
+        ready_pickup = len([o for o in st.session_state.orders 
+                          if o.get('status') == 'ready_for_pickup'])
+        st.markdown("""
+            <div style='background-color: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #dee2e6; text-align: center;'>
+                <h3 style='color: #fd7e14; margin: 0;'>Ready for Pickup</h3>
+                <h2 style='margin: 10px 0;'>{}</h2>
+                <p style='color: #6c757d; margin: 0;'>Awaiting Customer Pickup</p>
+            </div>
+        """.format(ready_pickup), unsafe_allow_html=True)
+    
+    with row2_col2:
+        pending_support = len([o for o in st.session_state.orders 
+                             if o.get('status') == 'payment_terms_rejected'])
+        st.markdown("""
+            <div style='background-color: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #dee2e6; text-align: center;'>
+                <h3 style='color: #dc3545; margin: 0;'>Need Support</h3>
+                <h2 style='margin: 10px 0;'>{}</h2>
+                <p style='color: #6c757d; margin: 0;'>Require Attention</p>
+            </div>
+        """.format(pending_support), unsafe_allow_html=True)
+    
+    with row2_col3:
+        active_orders = len([o for o in st.session_state.orders 
+                           if o.get('status') not in ['completed', 'marketing_rejected', 'production_rejected']])
+        st.markdown("""
+            <div style='background-color: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #dee2e6; text-align: center;'>
+                <h3 style='color: #0dcaf0; margin: 0;'>Active Orders</h3>
+                <h2 style='margin: 10px 0;'>{}</h2>
+                <p style='color: #6c757d; margin: 0;'>In Progress</p>
+            </div>
+        """.format(active_orders), unsafe_allow_html=True)
+    
+    # Main content tabs with icons
+    st.markdown("<br>", unsafe_allow_html=True)  # Add spacing
+    tab1, tab2, tab3 = st.tabs([
+        "📋 Order Management",
+        "📊 Inventory",
+        "👥 Customer Support"
     ])
     
     with tab1:
         show_order_management()
-        
     
     with tab2:
-        show_payment_approvals()
+        show_inventory_management()
     
     with tab3:
-        show_payment_verification()
-        
-    with tab4:
-        show_do_notifications()
-    
-    with tab5:
         show_customer_support()
 
 
-
-def show_payment_approvals():
-    st.subheader("💰Payment Terms Review")
+def show_inventory_management():
+    st.subheader("📊 Inventory Management")
     
-    # Filter orders that need payment review - updated status name
-    payment_review_orders = [
-        order for order in st.session_state.orders 
-        if (order.get('status') == 'pending_payment_approval' and order.get('payment_term') is not None) 
-    ]
+    # Initialize inventory if not exists
+    if 'inventory' not in st.session_state:
+        st.session_state.inventory = [
+            {
+                'seed_type': 'Dura Palm',
+                'quantity': 1000,
+                'price': 15.00,
+                'min_stock': 100,
+                'location': 'Category A',
+                'last_updated': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            },
+            {
+                'seed_type': 'Pisifera Palm',
+                'quantity': 750,
+                'price': 18.00,
+                'min_stock': 150,
+                'location': 'Category B',
+                'last_updated': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            },
+            {
+                'seed_type': 'Tenera Palm',
+                'quantity': 500,
+                'price': 20.00,
+                'min_stock': 75,
+                'location': 'Category A',
+                'last_updated': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            },
+            {
+                'seed_type': 'Compact Palm',
+                'quantity': 300,
+                'price': 16.50,
+                'min_stock': 50,
+                'location': 'Category C',
+                'last_updated': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            },
+            {
+                'seed_type': 'Elite Palm',
+                'quantity': 400,
+                'price': 25.00,
+                'min_stock': 80,
+                'location': 'Category B',
+                'last_updated': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+        ]
     
-    if not payment_review_orders:
-        st.info("No payment terms pending review")
-        return
+    # Quick stats cards
+    col1, col2, col3, col4 = st.columns(4)
     
-    for order in payment_review_orders:
-        with st.expander(f"Order #{format_order_id(order['order_id'])} - Payment Terms Review"):
-            col1, col2 = st.columns([2, 1])
-            
-            with col1:
-                st.write(f"**Customer:** {order['contact_name']}")
-                st.write(f"**Company:** {order['company_name']}")
-                st.write(f"**Total Amount:** ${order.get('total', 0):,.2f}")
-                st.write(f"**Requested Payment Terms:** {order.get('payment_term', 'Not specified')}")
-                
-                # Additional customer information
-                st.write("**Customer History:**")
-                st.write(f"Previous Orders: {order.get('previous_orders_count', 0)}")
-                st.write(f"Payment History Rating: {order.get('payment_rating', 'N/A')}")
-            
-            with col2:
-                review_decision = st.radio(
-                    "Payment Terms Decision",
-                    ["Approve", "Reject"],
-                    key=f"decision_{order['order_id']}"
-                )
-                
-                if review_decision == "Reject":
-                    rejection_reason = st.text_area(
-                        "Rejection Reason",
-                        key=f"reject_reason_{order['order_id']}"
-                    )
-                
-                if st.button("Submit Decision", key=f"submit_{order['order_id']}"):
-                    if review_decision == "Approve":
-                        approve_payment_terms(order)
-                    else:
-                        reject_payment_terms(order, rejection_reason)
-                    st.rerun()
-
-def approve_payment_terms(order):
-    # Update order status
-    for idx, o in enumerate(st.session_state.orders):
-        if o['order_id'] == order['order_id']:
-            st.session_state.orders[idx]['status'] = 'payment_terms_approved'
-            st.session_state.orders[idx]['payment_approval_date'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            # Add tracking update
-            st.session_state.orders[idx]['tracking_updates'].append({
-                'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                'status': 'Payment Terms Approved',
-                'message': 'Your payment terms have been approved. Please proceed with payment.'
-            })
+    with col1:
+        total_items = len(st.session_state.inventory)
+        st.metric("Total Products", total_items)
     
-    # Create notification for customer
-    create_notification(
-        order_id=order['order_id'],
-        notification_type='payment_terms',
-        title='Payment Terms Approved',
-        message=f"Payment terms for order #{order['order_id']} have been approved. Please proceed with payment.",
-        priority='high',
-        recipient='customer'
-    )
-
-def reject_payment_terms(order, reason):
-    # Update order status
-    for idx, o in enumerate(st.session_state.orders):
-        if o['order_id'] == order['order_id']:
-            st.session_state.orders[idx]['status'] = 'payment_terms_rejected'
-            st.session_state.orders[idx]['rejection_date'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            st.session_state.orders[idx]['rejection_reason'] = reason
-            # Add tracking update
-            st.session_state.orders[idx]['tracking_updates'].append({
-                'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                'status': 'Payment Terms Rejected',
-                'message': f'Payment terms rejected: {reason}'
-            })
+    with col2:
+        total_value = sum(item['quantity'] * item['price'] for item in st.session_state.inventory)
+        st.metric("Total Inventory Value", f"${total_value:,.2f}")
     
-    # Create notification for customer
-    create_notification(
-        order_id=order['order_id'],
-        notification_type='payment_terms',
-        title='Payment Terms Review - Action Required',
-        message=f"Payment terms for order #{order['order_id']} require revision. Reason: {reason}. Please contact customer support for assistance.",
-        priority='high',
-        recipient='customer'
-    )
-
-def show_payment_verification():
-    st.subheader("💰Payment Verification")
+    with col3:
+        total_quantity = sum(item['quantity'] for item in st.session_state.inventory)
+        st.metric("Total Stock (kg)", f"{total_quantity:,}")
     
-    # Filter orders that need payment verification
-    pending_payment_orders = [
-        order for order in st.session_state.orders 
-        if order.get('status') == 'payment_submitted'
-    ]
+    with col4:
+        low_stock = len([item for item in st.session_state.inventory if item['quantity'] <= item['min_stock']])
+        st.metric("Low Stock Items", low_stock, delta_color="inverse")
     
-    if not pending_payment_orders:
-        st.info("No payments pending verification")
-        return
+    # Add new inventory
+    with st.expander("➕ Add New Inventory"):
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            seed_type = st.selectbox(
+                "Seed Type",
+                options=['Dura Palm', 'Pisifera Palm', 'Tenera Palm', 'Compact Palm', 'Elite Palm']
+            )
+            location = st.selectbox("Location", ["Category A", "Category B", "Category C"])
+        with col2:
+            quantity = st.number_input("Quantity (kg)", min_value=0)
+            min_stock = st.number_input("Minimum Stock Level (kg)", min_value=0)
+        with col3:
+            price = st.number_input("Price per kg ($)", min_value=0.0, step=0.01)
         
-    for order in pending_payment_orders:
-        with st.expander(f"Order #{order['order_id']} - Payment Verification"):
-            col1, col2 = st.columns([2, 1])
+        if st.button("Add Inventory"):
+            st.session_state.inventory.append({
+                'seed_type': seed_type,
+                'quantity': quantity,
+                'price': price,
+                'min_stock': min_stock,
+                'location': location,
+                'last_updated': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            })
+            st.success("✅ Inventory added successfully!")
+            st.rerun()
+    
+    # Update existing inventory
+    with st.expander("📝 Update Existing Inventory"):
+        for idx, item in enumerate(st.session_state.inventory):
+            st.markdown(f"### {item['seed_type']}")
+            col1, col2, col3 = st.columns(3)
             
             with col1:
-                st.write(f"**Customer:** {order['contact_name']}")
-                st.write(f"**Company:** {order['company_name']}")
-                st.write(f"**Total Amount:** ${order.get('payment_amount', 0):,.2f}")
-                st.write(f"**Payment Method:** {order.get('payment_method', 'Not specified')}")
-                st.write(f"**Payment Date:** {order.get('payment_timestamp', 'Not specified')}")
-                
-                if 'payment_proof' in order:
-                    st.write("**Payment Proof:**")
-                    st.image(order['payment_proof'], caption="Payment Proof Document")
-            
-            with col2:
-                verification_status = st.radio(
-                    "Verification Status",
-                    ["Verify Payment", "Request Clarification"],
-                    key=f"verify_{order['order_id']}"
+                new_quantity = st.number_input(
+                    "Quantity (kg)", 
+                    value=item['quantity'],
+                    key=f"qty_{idx}"
                 )
-                
-                if verification_status == "Request Clarification":
-                    clarification_reason = st.text_area(
-                        "Clarification Details",
-                        key=f"clarify_{order['order_id']}"
-                    )
-                
-                if st.button("Submit Verification", key=f"submit_verify_{order['order_id']}"):
-                    if verification_status == "Verify Payment":
-                        verify_payment(order)
-                        st.success("Payment verified successfully!")
-                    else:
-                        request_payment_clarification(order, clarification_reason)
-                        st.success("Clarification request sent to customer!")
+            with col2:
+                new_price = st.number_input(
+                    "Price per kg ($)", 
+                    value=item['price'],
+                    step=0.01,
+                    key=f"price_{idx}"
+                )
+            with col3:
+                if st.button("Update", key=f"update_{idx}"):
+                    st.session_state.inventory[idx]['quantity'] = new_quantity
+                    st.session_state.inventory[idx]['price'] = new_price
+                    st.session_state.inventory[idx]['last_updated'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    st.success("✅ Updated successfully!")
                     st.rerun()
-
-def verify_payment(order):
-    """Verify payment and notify production to generate DO"""
-    # Update order status
-    for idx, o in enumerate(st.session_state.orders):
-        if o['order_id'] == order['order_id']:
-            st.session_state.orders[idx]['status'] = 'payment_verified'
-            st.session_state.orders[idx]['payment_verification_date'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            # Add tracking update
-            st.session_state.orders[idx]['tracking_updates'].append({
-                'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                'status': 'Payment Verified',
-                'message': 'Payment has been verified. Order is being processed.'
-            })
     
-    # Notify customer about payment verification
-    create_notification(
-        order_id=order['order_id'],
-        notification_type='payment_status',
-        title='Payment Verified',
-        message=f"Payment for order #{order['order_id']} has been verified. Your order is being processed.",
-        priority='high',
-        recipient='customer'
+    # Display current inventory
+    st.markdown("### 📊 Current Inventory")
+    
+    # Convert to DataFrame for better display
+    df = pd.DataFrame(st.session_state.inventory)
+    
+    # Add total value column
+    df['total_value'] = df['quantity'] * df['price']
+    
+    # Add stock status
+    df['stock_status'] = df.apply(
+        lambda x: '🔴 Low' if x['quantity'] <= x['min_stock'] 
+        else '🟢 Good' if x['quantity'] > x['min_stock'] * 2 
+        else '🟡 Medium',
+        axis=1
     )
     
-    # Notify production to generate DO
-    create_notification(
-        order_id=order['order_id'],
-        notification_type='do_request',
-        title='Generate Delivery Order',
-        message=f"Payment verified for order #{order['order_id']}. Please generate delivery order.",
-        priority='high',
-        recipient='production'
-    )
-
-def request_payment_clarification(order, reason):
-    # Update order status and add clarification request
-    for idx, o in enumerate(st.session_state.orders):
-        if o['order_id'] == order['order_id']:
-            st.session_state.orders[idx]['status'] = 'payment_clarification_required'
-            st.session_state.orders[idx]['clarification_reason'] = reason
-            st.session_state.orders[idx]['clarification_request_date'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            # Add tracking update
-            st.session_state.orders[idx]['tracking_updates'].append({
-                'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                'status': 'Payment Clarification Required',
-                'message': f'Additional payment information required: {reason}'
-            })
+    # Reorder columns
+    columns = ['seed_type', 'quantity', 'price', 'total_value', 'min_stock', 'stock_status', 'location', 'last_updated']
+    df = df[columns]
     
-    # Create notification for customer
-    create_notification(
-        order_id=order['order_id'],
-        notification_type='payment_clarification',
-        title='Payment Clarification Required',
-        message=f"We need additional information about your payment for order #{order['order_id']}: {reason}",
-        priority='high',
-        recipient='customer'
-    )
-
-
-def update_order_status_for_payment_review(order, approved):
-    # Update status based on marketing team's decision
-    if approved:
-        order['status'] = 'payment_terms_approved'
-        message = 'Payment terms approved by marketing team'
-    else:
-        order['status'] = 'payment_terms_rejected'
-        message = 'Payment terms rejected by marketing team'
-
-    # Append to tracking updates
-    order['tracking_updates'].append({
-        'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        'status': order['status'],
-        'message': message
+    # Format the DataFrame
+    formatted_df = df.style.format({
+        'price': '${:.2f}',
+        'total_value': '${:,.2f}',
+        'quantity': '{:,.0f}',
+        'min_stock': '{:,.0f}'
     })
+    
+    st.dataframe(formatted_df, use_container_width=True)
 
-    # Create a notification for the customer
-    create_notification(
-        order_id=order['order_id'],
-        notification_type='payment_review',
-        title='Payment Review Update',
-        message=message,
-        priority='high',
-        recipient='customer'
-    )
+
 
 def show_order_management():
-    st.subheader("📋Order Management")
+    st.subheader("📋 Order Management")
     
-    # Updated status filter options with clear labels
-    status_mapping = {
-        "All": "All",
-        "pending_payment_term": "Awaiting Payment Term Selection",
-        "pending_payment_approval": "Pending Payment Term Approval",
-        "payment_terms_approved": "Payment Terms Approved",
-        "payment_terms_rejected": "Payment Terms Rejected",
-        "payment_completed": "Payment Completed",
-        "ready_for_pickup": "Ready for Pickup",
-        "completed": "Order Completed",
-        "payment_submitted": "Payment Submitted",
-        "payment_verified": "Payment Verified",
-        "do_generated": "DO Generated",
-        "pending_production": "Pending Production",  # Added missing status
-        "in_production": "In Production",           # Added production-related status
-        "production_completed": "Production Completed"  # Added production-related status
-    }
-    
-    status_filter = st.selectbox(
-        "Filter by Status",
-        list(status_mapping.keys()),
-        format_func=lambda x: status_mapping[x]
-    )
-    
-    # Filter orders based on selected status
-    if status_filter != "All":
-        filtered_orders = [order for order in st.session_state.orders if order['status'] == status_filter]
-    else:
-        filtered_orders = st.session_state.orders
-    
-    if not filtered_orders:
-        st.info("No orders found for the selected status.")
+    if 'orders' not in st.session_state or not st.session_state.orders:
+        st.info("No orders to review")
         return
     
+    # Add filter options
+    col1, col2, col3 = st.columns([2, 1, 1])
+    with col1:
+        status_filter = st.multiselect(
+            "Filter by Status",
+            options=list(status_mapping.values()),
+            default=[]
+        )
+    with col2:
+        date_filter = st.date_input("Filter by Date", None)
+    with col3:
+        search_query = st.text_input("Search Order ID")
+    
+    # Filter orders based on selected statuses
+    filtered_orders = st.session_state.orders
+    if status_filter:
+        filtered_orders = [
+            order for order in filtered_orders 
+            if status_mapping.get(order.get('status', '')) in status_filter
+        ]
+    
+    # Apply date filter
+    if date_filter:
+        filtered_orders = [
+            order for order in filtered_orders
+            if order.get('date', '').startswith(date_filter.strftime("%Y-%m-%d"))
+        ]
+    
+    # Apply search filter
+    if search_query:
+        filtered_orders = [
+            order for order in filtered_orders
+            if search_query.lower() in format_order_id(order['order_id']).lower()
+        ]
+    
+    # Sort orders by date (newest first)
+    filtered_orders.sort(key=lambda x: x.get('date', ''), reverse=True)
+    
+    # Show order statistics
+    st.write("### 📈 Order Statistics")
+    col1, col2, col3, col4, col5 = st.columns(5)
+    
+    with col1:
+        total_orders = len(filtered_orders)
+        st.metric("Total Orders", total_orders)
+    
+    with col2:
+        pending_approval = len([o for o in filtered_orders if o.get('status') == 'pending_marketing_approval'])
+        st.metric("Pending Approval", pending_approval)
+    
+    with col3:
+        pending_pickup = len([o for o in filtered_orders if o.get('status') == 'ready_for_pickup'])
+        st.metric("Ready for Pickup", pending_pickup)
+    
+    with col4:
+        completed_orders = len([o for o in filtered_orders if o.get('status') == 'completed'])
+        st.metric("Completed Orders", completed_orders)
+    
+    with col5:
+        rejected_orders = len([o for o in filtered_orders if o.get('status') in ['marketing_rejected', 'production_rejected']])
+        st.metric("Rejected Orders", rejected_orders)
+    
+    # Update status colors to match new flow
+    status_color = {
+        'pending_marketing_approval': '🟡',
+        'marketing_approved': '🟢',
+        'marketing_rejected': '🔴',
+        'pending_production_approval': '🟡',
+        'production_approved': '🟢',
+        'production_rejected': '🔴',
+        'pending_payment_term': '🟡',
+        'pending_payment': '🟡',
+        'payment_verified': '🟢',
+        'packing': '🟡',
+        'ready_for_pickup': '🟢',
+        'completed': '🟢'
+    }
+    
+    # Display orders
+    st.write("### 📦 Orders List")
     for order in filtered_orders:
-        with st.expander(f"Order #{format_order_id(order['order_id'])} - {status_mapping[order['status']]}"):
+        current_status = order.get('status', 'unknown')
+        status_display = status_mapping.get(current_status, current_status.replace('_', ' ').title())
+        
+        with st.expander(f"{status_color.get(current_status, '⚪')} Order #{format_order_id(order['order_id'])} - {status_display}"):
             col1, col2 = st.columns([3, 1])
             
             with col1:
-                st.write(f"**Customer:** {order['contact_name']}")
-                st.write(f"**Company:** {order['company_name']}")
-                st.write(f"**Order Date:** {order['date']}")
-                st.write(f"**Total Amount:** ${order.get('total', 0):,.2f}")
+                show_order_details(order)
                 
-                # Show order items
-                st.write("**Order Items:**")
-                for item in order['items']:
-                    st.write(f"- {item['seed']}: {item['quantity']}kg at ${item['price_per_kg']}/kg")
-                
-                if order.get('special_instructions'):
-                    st.write("**Special Instructions:**")
-                    st.write(order['special_instructions'])
+                # Show tracking updates
+                if order.get('tracking_updates'):
+                    st.write("**Order Timeline:**")
+                    for update in reversed(order['tracking_updates']):
+                        st.write(f"- {update['timestamp']}: {update['status']} - {update['message']}")
             
             with col2:
-                # Actions based on order status
-                if order['status'] == 'pending_payment_approval':
-                    if st.button("Approve Payment", key=f"approve_payment_{order['order_id']}"):
-                        approve_payment_terms(order)
-                        st.success("Payment approved!")
+                st.write("**Actions Available:**")
+                current_status = order.get('status', '')
+                
+                # Show action buttons based on status
+                if current_status == 'pending_marketing_approval':
+                    if st.button("✅ Approve", key=f"approve_{order['order_id']}"):
+                        approve_marketing_order(order)
+                        st.success("Order approved!")
                         st.rerun()
-                    if st.button("Reject Payment", key=f"reject_payment_{order['order_id']}"):
-                        reject_payment_terms(order, "Reason for rejection")
-                        st.error("Payment rejected!")
+                    
+                    if st.button("❌ Reject", key=f"reject_{order['order_id']}"):
+                        rejection_reason = st.text_area(
+                            "Rejection Reason", 
+                            key=f"reason_{order['order_id']}"
+                        )
+                        if rejection_reason and st.button("Confirm Rejection", key=f"confirm_reject_{order['order_id']}"):
+                            reject_marketing_order(order, rejection_reason)
+                            st.error("Order rejected!")
+                            st.rerun()
+                
+                # Show notify customer button for ready for pickup orders
+                elif current_status == 'ready_for_pickup':
+                    if st.button("📞 Notify Customer", key=f"notify_{order['order_id']}"):
+                        notify_customer_pickup(order)
+                        st.success("Customer notified successfully!")
                         st.rerun()
-                elif order['status'] == 'payment_terms_approved':
-                    st.info("Payment terms approved. Awaiting payment.")
-                elif order['status'] == 'ready_for_pickup':
-                    st.success("Order is ready for pickup.")
-                elif order['status'] == 'completed':
-                    st.success("Order has been completed.")
-                elif order['status'] == 'payment_submitted':
-                    st.info("Payment has been submitted.")
-                elif order['status'] == 'payment_verified':
-                    st.success("Payment has been verified.")
-                elif order['status'] == 'do_generated':
-                    st.info("Delivery Order has been generated.")
-                # Add more actions as needed for other statuses
 
 def show_order_details(order):
     col1, col2 = st.columns([2, 1])
@@ -434,4 +495,71 @@ def resubmit_payment_terms(order_id):
                 priority='high',
                 recipient='marketing'
             )
+
+def approve_marketing_order(order):
+    """Approve order and send to production"""
+    for idx, o in enumerate(st.session_state.orders):
+        if o['order_id'] == order['order_id']:
+            st.session_state.orders[idx]['status'] = 'pending_production_approval'
+            st.session_state.orders[idx]['marketing_approved'] = True
+            st.session_state.orders[idx]['tracking_updates'].append({
+                'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                'status': 'Marketing Approved',
+                'message': 'Order approved by marketing team and sent to production for review'
+            })
+    
+    # Notify production team
+    create_notification(
+        order_id=order['order_id'],
+        notification_type='new_order',
+        title='New Order for Review',
+        message=f'Order #{format_order_id(order["order_id"])} has been approved by marketing and requires production review.',
+        priority='high',
+        recipient='production'
+    )
+
+def reject_marketing_order(order, reason):
+    """Reject order and notify customer"""
+    for idx, o in enumerate(st.session_state.orders):
+        if o['order_id'] == order['order_id']:
+            st.session_state.orders[idx]['status'] = 'marketing_rejected'
+            st.session_state.orders[idx]['rejection_reason'] = reason
+            st.session_state.orders[idx]['rejection_date'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
+            # Add tracking update
+            st.session_state.orders[idx]['tracking_updates'].append({
+                'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                'status': 'Marketing Rejected',
+                'message': f'Order rejected by marketing team. Reason: {reason}'
+            })
+            
+            # Create notification for customer
+            create_notification(
+                order_id=order['order_id'],
+                notification_type='order_status',
+                title='Order Rejected',
+                message=f'Your order #{format_order_id(order["order_id"])} has been rejected. Reason: {reason}',
+                priority='high',
+                recipient='customer'
+            )
+
+def notify_customer_pickup(order):
+    """Notify customer that order is ready for pickup"""
+    create_notification(
+        order_id=order['order_id'],
+        notification_type='pickup_ready',
+        title='Order Ready for Pickup',
+        message=f'Your order #{format_order_id(order["order_id"])} has been packed and is ready for pickup.',
+        priority='high',
+        recipient='customer'
+    )
+    
+    # Add tracking update
+    for idx, o in enumerate(st.session_state.orders):
+        if o['order_id'] == order['order_id']:
+            st.session_state.orders[idx]['tracking_updates'].append({
+                'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                'status': 'Customer Notified',
+                'message': 'Customer has been notified that order is ready for pickup.'
+            })
 

@@ -24,11 +24,19 @@ from notification import (
     show_production_notifications,
     show_notifications_customer,
     show_marketing_notifications,
-    show_do_notifications,
     initialize_notifications
 )
-from production_module import (show_production_dashboard,show_pending_orders,show_inventory_management,show_order_history,show_do_management)
-from marketing_module import (show_marketing_dashboard,show_payment_approvals,show_customer_support,show_do_notifications)
+from production_module import (
+    show_production_dashboard,
+    show_pending_orders,
+    show_inventory_management,
+    show_order_history
+)
+from marketing_module import (
+    show_marketing_dashboard,
+    show_customer_support,
+    show_inventory_management
+)
 
 
 # User roles and their corresponding pages
@@ -42,16 +50,14 @@ ROLE_PAGES = {
     'production': {
         'dashboard': {'title': '📋 Dashboard', 'function': show_production_dashboard},
         'pending_orders': {'title': '📦 Pending Orders', 'function': show_pending_orders},
-        'inventory': {'title': '📊 Inventory', 'function': show_inventory_management},
-        'do_management': {'title': '📋 DO Management', 'function': show_do_management},
-        'order_history': {'title': '📜 Order History', 'function': show_order_history},
+        'order_history': {'title': '📚 Order History', 'function': show_order_history},
+        'inventory': {'title': '📊 Inventory', 'function': show_inventory_management},\
         'production_notifications': {'title': '🔔 Notifications', 'function': show_production_notifications}
     },
     'marketing': {
         'dashboard': {'title': '📊 Dashboard', 'function': show_marketing_dashboard},
-        'payment_review': {'title': '💰 Payment Review', 'function': show_payment_approvals},
+        'inventory': {'title': '📊 Inventory', 'function': show_inventory_management},
         'customer_support': {'title': '👥 Customer Support', 'function': show_customer_support},
-        'do_notifications': {'title': '📋 DO Notifications', 'function': show_do_notifications},
         'marketing_notifications': {'title': '🔔 Notifications', 'function': show_marketing_notifications}
     }
 }
@@ -146,70 +152,33 @@ def show_sidebar():
             else:
                 title = page_info['title']
             
-            if st.button(title, key=f"nav_{page_id}"):
+            if st.button(title, key=f"nav_{page_id}", use_container_width=True):
                 st.session_state.current_page = page_id
                 st.rerun()
         
         st.divider()
-        if st.button("Logout"):
+        if st.button("Logout", use_container_width=True):
             st.session_state.authenticated = False
             st.session_state.user_role = None
             st.session_state.current_page = 'landing'
             st.rerun()
 
-def get_notification_count(role, page_id=None):
-    """
-    Get number of unread notifications for the specified role and page
-    """
+def get_notification_count(role):
+    """Get number of unread notifications for the specified role"""
     if role == 'customer':
-        if 'notification_customer' not in st.session_state:
-            return 0
-        return len([n for n in st.session_state.notification_customer if not n.get('read', False)])
+        return len([n for n in st.session_state.get('notification_customer', []) 
+                   if not n.get('read', False)])
     elif role == 'production':
-        if 'production_notifications' not in st.session_state:
-            return 0
-        return len([n for n in st.session_state.production_notifications if not n.get('read', False)])
+        return len([n for n in st.session_state.get('production_notifications', []) 
+                   if not n.get('read', False)])
     elif role == 'marketing':
-        if page_id == 'do_notifications':
-            # Only count actual pending DO notifications
-            return len([order for order in st.session_state.orders 
-                       if order.get('status') == 'do_generated' and not order.get('notification_read', False)])
-        elif page_id == 'marketing_notifications':
-            if 'marketing_notifications' not in st.session_state:
-                return 0
-            # Only count unread marketing notifications
-            return len([n for n in st.session_state.marketing_notifications if not n.get('read', False)])
+        marketing_count = len([n for n in st.session_state.get('marketing_notifications', []) 
+                             if not n.get('read', False)])
+        do_count = len([order for order in st.session_state.get('orders', [])
+                       if order.get('status') == 'do_generated' 
+                       and not order.get('notification_read', False)])
+        return marketing_count + do_count
     return 0
-
-def show_sidebar():
-    """Display sidebar navigation based on user role"""
-    with st.sidebar:
-        st.title(f"Welcome, {st.session_state.user_name}")
-        st.divider()
-        
-        # Get pages for current user role
-        role_pages = ROLE_PAGES.get(st.session_state.user_role, {})
-        
-        # Show navigation options
-        for page_id, page_info in role_pages.items():
-            if 'notification' in page_id:
-                # Get notification count specific to this page
-                count = get_notification_count(st.session_state.user_role, page_id)
-                # Only show count if there are actual notifications
-                title = f"{page_info['title']} ({count})" if count > 0 else page_info['title']
-            else:
-                title = page_info['title']
-            
-            if st.button(title, key=f"nav_{page_id}"):
-                st.session_state.current_page = page_id
-                st.rerun()
-        
-        st.divider()
-        if st.button("Logout"):
-            st.session_state.authenticated = False
-            st.session_state.user_role = None
-            st.session_state.current_page = 'landing'
-            st.rerun()
 
 def main():
     # Initialize session state
@@ -249,31 +218,117 @@ def main():
 
 def show_navigation_bar():
     """Show a persistent navigation bar at the top"""
-    # Create three columns for navigation
-    col1, col2, col3, col4 = st.columns([4, 1, 1, 1])
+    # Add custom CSS for navigation bar
+    st.markdown("""
+        <style>
+        div[data-testid="stToolbar"] {
+            z-index: 998;
+        }
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 1000;
+            padding: 1rem 3rem;
+            background-color: #ffffff;
+            border-bottom: 1px solid #e0e0e0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        /* Adjust main content padding */
+        .main .block-container {
+            padding-top: 5rem;
+            margin-top: 30px;
+        }
+        /* Ensure navbar stays above other elements */
+        div.stButton > button {
+            z-index: 1001;
+            position: relative;
+        }
+        .nav-title {
+            color: #2E7D32;
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        .nav-button {
+            background-color: #2E7D32;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            border: none;
+            transition: background-color 0.3s;
+            position: relative;
+        }
+        .nav-button:hover {
+            background-color: #1B5E20;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # Navigation bar container
+    st.markdown('<div class="navbar">', unsafe_allow_html=True)
+    
+    # Create columns for navigation elements
+    col1, col2, col3, col4, col5 = st.columns([3, 1, 1, 1, 1])
     
     with col1:
-        st.markdown("<h2 style='color: #2E7D32; margin: 0;'>🌴 Palm Oil Seed Management</h2>", unsafe_allow_html=True)
+        # Logo and title
+        st.markdown(
+            '<div style="display: flex; align-items: center;">'
+            '<span style="font-size: 1.8rem; margin-right: 10px;">🌴</span>'
+            '<span class="nav-title">Palm Oil Seed Management</span>'
+            '</div>',
+            unsafe_allow_html=True
+        )
     
+    # Different navigation options based on authentication state
     if not st.session_state.authenticated:
-        with col3:
+        with col4:
             if st.button("Login", key="nav_login", use_container_width=True):
                 st.session_state.current_page = 'login'
                 st.rerun()
-        with col4:
+        with col5:
             if st.button("Sign Up", key="nav_signup", use_container_width=True):
                 st.session_state.current_page = 'signup'
                 st.rerun()
     else:
+        # Show user info and navigation for authenticated users
         with col3:
-            st.write(f"Welcome, {st.session_state.user_name}")
+            # Home button
+            if st.button("🏠 Home", key="nav_home", use_container_width=True):
+                if st.session_state.user_role == 'customer':
+                    st.session_state.current_page = 'catalog'
+                else:
+                    st.session_state.current_page = 'dashboard'
+                st.rerun()
+        
         with col4:
+            # Notifications with count
+            notification_count = get_notification_count(st.session_state.user_role)
+            notification_text = f"🔔 Notifications {f'({notification_count})' if notification_count > 0 else ''}"
+            
+            if st.button(notification_text, key="nav_notifications", use_container_width=True):
+                if st.session_state.user_role == 'customer':
+                    st.session_state.current_page = 'notification_customer'
+                elif st.session_state.user_role == 'marketing':
+                    st.session_state.current_page = 'marketing_notifications'
+                elif st.session_state.user_role == 'production':
+                    st.session_state.current_page = 'production_notifications'
+                st.rerun()
+        
+        with col5:
+            # Logout button
             if st.button("Logout", key="nav_logout", use_container_width=True):
                 for key in list(st.session_state.keys()):
                     del st.session_state[key]
                 st.rerun()
     
-    st.divider()  # Add a line under the navigation
+    st.markdown('</div>', unsafe_allow_html=True)
 
 def show_landing_page():
     """Show the landing page with send order inquiry"""
@@ -534,45 +589,6 @@ def redirect_to_chatbot():
     
 
 
-def show_sidebar():
-    """Show role-specific sidebar navigation"""
-    with st.sidebar:
-        st.write(f"Welcome, {st.session_state.user_name}!")
-        
-        # Role-specific navigation
-        if st.session_state.user_role == 'customer':
-            st.sidebar.title("Navigation")
-            if st.sidebar.button("📗 Catalog"):
-                st.session_state.current_page = 'catalog'
-            if st.sidebar.button("🛒 My Cart"):
-                st.session_state.current_page = 'cart'
-            if st.sidebar.button("📦 Order Tracking"):
-                st.session_state.current_page = 'tracking'
-            if st.sidebar.button("🔔 Notifications"):
-                st.session_state.current_page = 'notification_customer'
-                
-        elif st.session_state.user_role == 'marketing':
-            st.sidebar.title("Marketing")
-            if st.sidebar.button("📊 Dashboard"):
-                st.session_state.current_page = 'dashboard'
-            if st.sidebar.button("🔔 Notifications"):
-                st.session_state.current_page = 'marketing_notifications'
-                
-        elif st.session_state.user_role == 'production':
-            st.sidebar.title("Production")
-            if st.sidebar.button("📋 Dashboard"):
-                st.session_state.current_page = 'dashboard'
-            if st.sidebar.button("🔔 Notifications"):
-                st.session_state.current_page = 'production_notifications'
-        
-        # Logout button
-        if st.sidebar.button("Logout"):
-            st.session_state.authenticated = False
-            st.session_state.user_role = None
-            st.session_state.user_name = None
-            st.session_state.current_page = 'landing'
-            st.rerun()
-
 def show_signup():
     # Add return button at the top left
     if st.button("← Return to Home", key="return_login"):
@@ -619,9 +635,6 @@ def show_signup():
         ic_back = st.file_uploader("Upload IC (Back)*", 
                                  type=['jpg', 'jpeg', 'png'],
                                  help="Maximum file size: 2MB")
-        business_cert = st.file_uploader("Upload Business Registration Certificate*", 
-                                      type=['pdf', 'jpg', 'jpeg', 'png'],
-                                      help="SSM Certificate or equivalent")
         
         # Account Security
         st.markdown("### Account Security")
@@ -638,6 +651,7 @@ def show_signup():
         submitted = st.form_submit_button("Create Account")
         
         if submitted:
+            """
             # Validate all required fields
             required_fields = {
                 'Company Name': company_name,
@@ -649,7 +663,6 @@ def show_signup():
                 'Address': address,
                 'IC Front': ic_front,
                 'IC Back': ic_back,
-                'Business Certificate': business_cert,
                 'Password': password,
                 'Confirm Password': confirm_password
             }
@@ -683,7 +696,7 @@ def show_signup():
             if password != confirm_password:
                 st.error("Passwords do not match")
                 return
-            
+            """
             # Check terms agreement
             if not (agree_terms and agree_privacy):
                 st.error("Please agree to both Terms and Conditions and Privacy Policy")
@@ -703,21 +716,25 @@ def show_signup():
                     address=address,
                     ic_front=ic_front,
                     ic_back=ic_back,
-                    business_cert=business_cert
                 )
                 
-                st.success("Account created successfully! Please wait for admin verification.")
+                # Set session state for immediate login
                 st.session_state.authenticated = True
                 st.session_state.user_role = 'customer'
+                st.session_state.user_name = contact_name
                 st.session_state.user_email = email
-                redirect_to_chatbot()
+                st.session_state.current_page = 'catalog'  # Redirect to catalog
+                
+                st.success("Account created successfully!")
+                time.sleep(1)  # Brief pause to show success message
+                st.rerun()  # Refresh to show catalog
                 
             except Exception as e:
                 st.error(f"Error creating account: {str(e)}")
 
 def create_customer_account(email, password, company_name, company_registration, 
                           contact_name, ic_number, phone, office_phone, address,
-                          ic_front, ic_back, business_cert):
+                          ic_front, ic_back):
     """Create a new customer account with verification documents."""
     try:
         # Initialize customers in session state if it doesn't exist
@@ -734,27 +751,14 @@ def create_customer_account(email, password, company_name, company_registration,
         # Save uploaded documents
         doc_paths = {}
         if ic_front:
-            # Save IC front image
             doc_paths['ic_front'] = f"uploads/{customer_id}_ic_front.{ic_front.type.split('/')[-1]}"
-            # In production, save the file to storage
-            # ic_front.save(doc_paths['ic_front'])
-        
         if ic_back:
-            # Save IC back image
             doc_paths['ic_back'] = f"uploads/{customer_id}_ic_back.{ic_back.type.split('/')[-1]}"
-            # In production, save the file to storage
-            # ic_back.save(doc_paths['ic_back'])
-        
-        if business_cert:
-            # Save business certificate
-            doc_paths['business_cert'] = f"uploads/{customer_id}_cert.{business_cert.type.split('/')[-1]}"
-            # In production, save the file to storage
-            # business_cert.save(doc_paths['business_cert'])
         
         # Hash password for security
         password_hash = hashlib.sha256(password.encode()).hexdigest()
         
-        # Create customer record
+        # Create customer record - Set status to verified directly
         customer_data = {
             'customer_id': customer_id,
             'email': email,
@@ -767,9 +771,9 @@ def create_customer_account(email, password, company_name, company_registration,
             'office_phone': office_phone,
             'address': address,
             'document_paths': doc_paths,
-            'status': 'pending_verification',
+            'status': 'verified',  # Changed from 'pending_verification' to 'verified'
             'created_at': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            'verified_at': None,
+            'verified_at': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),  # Set verification time
             'role': 'customer'
         }
         
@@ -785,19 +789,6 @@ def create_customer_account(email, password, company_name, company_registration,
             'role': 'customer',
             'name': contact_name
         }
-        
-        # Create notification for admin verification
-        if 'admin_notifications' not in st.session_state:
-            st.session_state.admin_notifications = []
-        
-        st.session_state.admin_notifications.append({
-            'type': 'new_customer',
-            'customer_id': customer_id,
-            'company_name': company_name,
-            'email': email,
-            'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            'status': 'pending'
-        })
         
         return customer_data
         

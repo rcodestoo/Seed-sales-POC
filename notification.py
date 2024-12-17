@@ -82,13 +82,20 @@ def get_relative_time(timestamp_str):
         return "Just now"
     
 def get_notification_badge(notification_type):
-    """Returns a formatted label for the notification type."""
-    type_labels = {
-        'order_status': 'Order Status',
+    """Get badge text based on notification type"""
+    badges = {
+        'new_order': 'New Order',
+        'order_status': 'Status Update',
+        'production_update': 'Production Update',
+        'packing_request': 'Packing Request',
+        'payment_verified': 'Payment Verified',
+        'ready_for_pickup': 'Ready for Pickup',
         'system_update': 'System Update',
-        'reminder': 'Reminder'
+        'urgent_order': 'Urgent Order',
+        'quality_check': 'Quality Check',
+        'inventory_alert': 'Inventory Alert'
     }
-    return type_labels.get(notification_type, notification_type)
+    return badges.get(notification_type, notification_type.replace('_', ' ').title())
 
 
 def filter_notifications(notifications, filter_read, filter_priority):
@@ -124,6 +131,12 @@ def add_notification_styles():
         .badge-pickup { background-color: #FEF3C7; color: #92400E; }
         .badge-approval { background-color: #E0E7FF; color: #3730A3; }
         .badge-do_request { background-color: #FFF4E5; color: #D97706; }
+        .badge-new_order { background-color: #E8F5E9; color: #2E7D32; }
+        .badge-production_update { background-color: #E3F2FD; color: #1976D2; }
+        .badge-packing_request { background-color: #FFF3E0; color: #E65100; }
+        .badge-quality_check { background-color: #F3E5F5; color: #7B1FA2; }
+        .badge-inventory_alert { background-color: #FFEBEE; color: #C62828; }
+        .badge-urgent_order { background-color: #FFE0E0; color: #D32F2F; }
         </style>
     """, unsafe_allow_html=True)
 

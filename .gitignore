@@ -1,4 +1,5 @@
 venv/
+!venv/Lib/site-packages/torch/lib/torch_cpu.dll
 .venv/
 *env/
 *.env

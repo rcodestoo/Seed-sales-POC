@@ -1,5 +1,7 @@
+# Ignore the entire venv folder
 venv/
-!venv/Lib/site-packages/torch/lib/torch_cpu.dll
-.venv/
-*env/
-*.env
+
+# Ignore specific large files or directories if they still get tracked
+venv/Lib/site-packages/torch/lib/torch_cpu.dll
+venv/Lib/site-packages/torch/lib/dnnl.lib
+

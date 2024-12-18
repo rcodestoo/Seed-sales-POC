@@ -1,4 +1,31 @@
-# Ignore the entire venv folder
+# Virtual Environment
 venv/
+.env
+env/
+*.env
 
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
 
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Large binary files
+*.dll
+*.lib
+
+# PyTorch specific
+venv/Lib/site-packages/torch/
+venv/Lib/site-packages/torchvision/
+venv/Lib/site-packages/torchaudio/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IDE settings
+.vscode/
+.idea/
